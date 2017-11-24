@@ -15,12 +15,12 @@ protected:
   
   //unsigned long secondsAfterMidnight;
   uint8_t day, month, year;
-  uint8_t hour, minute, second;
+  uint8_t hour, minute, second, msec;
   
   long lat = -99;
   long lon = -199;
-  double elev = -99; //not really a double, but sprintf balks otherwise
-  double speed = 0;
+  float elev = -99; //not really a double, but sprintf balks otherwise
+  float speed = 0;
 
   uint8_t gpsFix = 0;
     
@@ -50,7 +50,7 @@ public:
   int Merge(const GPSdatum& newReading)
   {
     int retVal = 0;
-    if(newReading.hour == hour && newReading.minute == minute && newReading.second == second)
+    if(newReading.hour == hour && newReading.minute == minute && newReading.second == second && newReading.msec == msec)
     {
       if(newReading.source & RMC)
       {
@@ -106,27 +106,44 @@ public:
             return String(); 
     }
     
+//    String MakeShortDataString(void)
+//    {
+////        if(gpsFix)
+//        {
+//            char dataStr[100];
+//
+//            sprintf(dataStr, "%lu,%i,%02i:%02i:%02i,%li,%li,%li,%li",
+//                    timestamp,
+//                    gpsFix,
+//                    hour,
+//                    minute,
+//                    second,
+//                    lat,
+//                    lon,
+//                    long(elev*10),
+//                    long(speed*KNOTS_TO_KMH*10));
+//
+//            return String(dataStr);
+//        }
+////        else
+////            return String();
+//    }
+    
     String MakeShortDataString(void)
     {
-        if(gpsFix)
-        {
-            char dataStr[100];
-            
-            sprintf(dataStr, "%lu,%i,%02i:%02i:%02i,%li,%li,%li,%li",
-                    timestamp,
-                    gpsFix,
-                    hour,
-                    minute,
-                    second,
-                    lat,
-                    lon,
-                    long(elev*10),
-                    long(speed*KNOTS_TO_KMH*10));
-            
-            return String(dataStr);
-        }    
-        else
-            return String(); 
+        char dataStr[100];
+        
+        sprintf(dataStr, "%i,%02i:%02i:%02i",
+//                timestamp,
+                gpsFix,
+                hour,
+                minute,
+                second);
+//                lat,
+//                lon,
+//                elev);
+        
+        return String(dataStr) + ',' + String(elev);
     }
 };
 
@@ -209,14 +226,32 @@ class GPS_MTK3339 : public GPS
     GPS_MTK3339(HardwareSerial* ser) : GPS(ser) {}
     int Init(void)
     {
-      //serial->begin(9600);
-      //delay(100);
-        SendNMEA("PMTK220,2000");
-      SendNMEA("PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0");
-      //SendNMEA("PMTK401");
+        SetReportPeriod(1000); //rate, in ms; default to 1 Hz
+        SetActiveNMEAStrings(GGA | RMC);
+        //SendNMEA("PMTK401");
       //SendNMEA("PMTK413");
       
       return 1;
+    }
+    
+    bool SetReportPeriod(uint16_t per)
+    {
+        char str[24];
+        sprintf(str, "PMTK220,%i", per);
+        SendNMEA(str);
+        
+        //should really wait for confirmation
+        return true;
+    }
+    
+    bool SetActiveNMEAStrings(uint8_t strings)
+    {
+        char str[96];
+        sprintf(str, "PMTK314,0,%i,0,%i,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", strings & RMC ? 1 : 0, strings & GGA ? 1 : 0);
+        SendNMEA(str);
+        
+        //should really wait for confirmation
+        return true;
     }
 };
 

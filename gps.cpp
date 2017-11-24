@@ -99,6 +99,7 @@ int GPSdatum::NMEAtoTime(const String& timeStr)
   hour = timeStr.substring(0, 2).toInt();
   minute = timeStr.substring(2, 4).toInt();
   second = timeStr.substring(4, 6).toInt();
+    msec = timeStr.substring(8).toInt();
 
   return 1;
 }
