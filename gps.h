@@ -8,9 +8,29 @@
 
 #define KNOTS_TO_KMH 1.852
 
+struct GPSDatum
+{
+    uint8_t source = 0; //indicates which strings/readings were used to create it
+    
+    GPSDatum(uint8_t s) : source(s) {}
+    uint8_t operator [] (int) {return source;}
+};
+
+struct GGADatum : public GPSDatum
+{
+    GGADatum(void) : GPSDatum(GGA) {}
+    
+};
+
+struct RMCDatum : public GPSDatum
+{
+    RMCDatum(void) : GPSDatum(RMC) {}
+
+};
+
 class GPSdatum
 {
-protected:
+public:
   uint8_t source = 0; //indicates which strings/readings were used to create it
   
   //unsigned long secondsAfterMidnight;
@@ -19,16 +39,16 @@ protected:
   
   long lat = -99;
   long lon = -199;
-  float elev = -99; //not really a double, but sprintf balks otherwise
-  float speed = 0;
+  double elev = -99; //not really a double, but sprintf balks otherwise
+  double speed = 0;
 
   uint8_t gpsFix = 0;
     
   uint32_t timestamp = 0; //used to hold value from millis(), not true timestamp
 
 public:
-    
-  GPSdatum(uint32_t ts = 0) : timestamp(ts) {}
+    GPSdatum(uint32_t ts = millis()) : timestamp(ts) {}
+    uint8_t operator() (void) {return source;}
     
   uint8_t ParseNMEA(const String& str);
   
@@ -85,25 +105,23 @@ public:
         {
             char dataStr[100];
             
-            sprintf(dataStr, "%lu,%X,%i,20%02i/%02i/%02i,%02i:%02i:%02i,%li,%li,%li,%li",
+            sprintf(dataStr, "%lu,%X,%i,%02i:%02i:%02i,%li,%li,%2.2f",
                     timestamp,
                     source,
                     gpsFix,
-                    year,
-                    month,
-                    day,
+//                    year,
+//                    month,
+//                    day,
                     hour,
                     minute,
                     second,
                     lat,
                     lon,
-                    long(elev*10),
-                    long(speed*KNOTS_TO_KMH*10));
-            
+                    elev);
             return String(dataStr);
         }    
         else
-            return String(); 
+            return String("0");
     }
     
 //    String MakeShortDataString(void)
@@ -133,17 +151,17 @@ public:
     {
         char dataStr[100];
         
-        sprintf(dataStr, "%i,%02i:%02i:%02i",
+        sprintf(dataStr, "%02i:%02i:%02i,%2.2f",
 //                timestamp,
-                gpsFix,
+//                gpsFix,
                 hour,
                 minute,
-                second);
+                second,
 //                lat,
 //                lon,
-//                elev);
+                elev);
         
-        return String(dataStr) + ',' + String(elev);
+        return String(dataStr);
     }
 };
 
@@ -162,46 +180,72 @@ public:
 
   GPSdatum GetReading(void) {return workingDatum;}
 
-  int CheckSerial(void)
-  {
-    int retVal = 0;
-    while(serial->available())
+    static uint8_t CalcChecksum(const String& str)
     {
-      char c = serial->read();
-      if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
-      if(c == '\n') //we have a complete string
-      {
-        GPSdatum newReading;
-        retVal = newReading.ParseNMEA(gpsString); //parse it; retVal holds its type
-          
-        if(retVal) //if we have a valid string
+        uint8_t checksum = 0;
+        for(uint16_t i = 0; i < str.length(); i++)
         {
-          //first, try to combine it with the previous
-          int combined = workingDatum.Merge(newReading);
-          if(combined) //it worked
-          {
-            retVal = combined;
-          }
-          else //the two don't merge
-          {
-            //start anew with the new datum
-            workingDatum = newReading;
-          }
+            checksum ^= str[i];
         }
-        gpsString = "";
-      }
+        
+        return checksum;
     }
 
-    return retVal;
-  }
+    uint8_t CheckSerial(void)
+    {
+        int retVal = 0;
+        while(serial->available())
+        {
+            char c = serial->read();
+            if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
+            if(c == '\n') //we have a complete string
+            {
+//                GPSdatum newReading;
+//                retVal = newReading.ParseNMEA(gpsString); //parse it; retVal holds its type
+                GPSdatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
+                retVal = newReading.source;
+                
+                if(newReading.source) //if we have a valid string
+                {
+                  //first, try to combine it with the previous
+                  int combined = workingDatum.Merge(newReading);
+                  if(combined) //it worked
+                  {
+                    retVal = combined;
+                  }
+                  else //the two don't merge
+                  {
+                    //start anew with the new datum
+                    workingDatum = newReading;
+                  }
+                }
 
-  int SendNMEA(const String& str)
-  {
-    serial->print(MakeNMEAwithChecksum(str));
-    return 1;
-  }
+                gpsString = "";
+            }
+        }
+
+        return retVal;
+    }
+
+int SendNMEA(const String& str)
+{
+    if(serial)
+    {
+        serial->print(MakeNMEAwithChecksum(str));
+        return 1;
+    }
+    return 0;
+}
 
   static String MakeNMEAwithChecksum(const String& str);
+   GPSdatum ParseNMEA(const String& nmeaStr);
+    
+protected: //utility functions
+    static String GetNMEASubstring(const String& str, int commaIndex);
+    static long ConvertToDMM(const String& degStr);
+    int NMEAtoTime(const String& timeStr);
+    int NMEAtoDate(const String& dateStr);
+
 };
 
 class GPS_EM506 : public GPS
