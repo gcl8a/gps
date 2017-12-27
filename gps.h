@@ -5,28 +5,30 @@
 
 #define GGA 0x01
 #define RMC 0x02
+#define GSA 0x04
+#define GSV 0x08
 
 #define KNOTS_TO_KMH 1.852
 
-struct GPSDatum
-{
-    uint8_t source = 0; //indicates which strings/readings were used to create it
-    
-    GPSDatum(uint8_t s) : source(s) {}
-    uint8_t operator [] (int) {return source;}
-};
-
-struct GGADatum : public GPSDatum
-{
-    GGADatum(void) : GPSDatum(GGA) {}
-    
-};
-
-struct RMCDatum : public GPSDatum
-{
-    RMCDatum(void) : GPSDatum(RMC) {}
-
-};
+//struct GPSDatum
+//{
+//    uint8_t source = 0; //indicates which strings/readings were used to create it
+//
+//    GPSDatum(uint8_t s) : source(s) {}
+//    uint8_t operator [] (int) {return source;}
+//};
+//
+//struct GGADatum : public GPSDatum
+//{
+//    GGADatum(void) : GPSDatum(GGA) {}
+//
+//};
+//
+//struct RMCDatum : public GPSDatum
+//{
+//    RMCDatum(void) : GPSDatum(RMC) {}
+//
+//};
 
 class GPSdatum
 {
@@ -106,7 +108,7 @@ public:
             char dataStr[100];
             
             sprintf(dataStr, "%lu,%X,%i,%02i:%02i:%02i,%li,%li,%2.2f",
-                    timestamp,
+                    timestamp%1000,
                     source,
                     gpsFix,
 //                    year,
@@ -177,6 +179,7 @@ public:
     GPS(HardwareSerial* ser) : serial(ser) {}
 
   virtual int Init(void) = 0;
+    
 
   GPSdatum GetReading(void) {return workingDatum;}
 
@@ -191,6 +194,31 @@ public:
         return checksum;
     }
 
+    uint8_t CheckSerial(GPSdatum* datum)
+    {
+        while(serial->available())
+        {
+            char c = serial->read();
+            if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
+            if(c == '\n') //we have a complete string
+            {
+                GPSdatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
+                uint8_t retVal = newReading.source;
+                
+                if(newReading.source) //if we have a valid string
+                {
+                    *datum = newReading;
+                }
+                
+                gpsString = "";
+                
+                return retVal;
+            }
+        }
+        
+        return false;
+    }
+    
     uint8_t CheckSerial(void)
     {
         int retVal = 0;
@@ -200,33 +228,48 @@ public:
             if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
             if(c == '\n') //we have a complete string
             {
-//                GPSdatum newReading;
-//                retVal = newReading.ParseNMEA(gpsString); //parse it; retVal holds its type
+                //                GPSdatum newReading;
+                //                retVal = newReading.ParseNMEA(gpsString); //parse it; retVal holds its type
                 GPSdatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
                 retVal = newReading.source;
                 
                 if(newReading.source) //if we have a valid string
                 {
-                  //first, try to combine it with the previous
-                  int combined = workingDatum.Merge(newReading);
-                  if(combined) //it worked
-                  {
-                    retVal = combined;
-                  }
-                  else //the two don't merge
-                  {
-                    //start anew with the new datum
-                    workingDatum = newReading;
-                  }
+                    //first, try to combine it with the previous
+                    int combined = workingDatum.Merge(newReading);
+                    if(combined) //it worked
+                    {
+                        retVal = combined;
+                    }
+                    else //the two don't merge
+                    {
+                        //start anew with the new datum
+                        workingDatum = newReading;
+                    }
                 }
-
+                
                 gpsString = "";
             }
         }
-
+        
         return retVal;
     }
-
+    
+    uint8_t CheckSerialNoParse(void)
+    {
+        while(serial->available())
+        {
+            char c = serial->read();
+            if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
+            if(c == '\n') //we have a complete string
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
 int SendNMEA(const String& str)
 {
     if(serial)
@@ -238,8 +281,9 @@ int SendNMEA(const String& str)
 }
 
   static String MakeNMEAwithChecksum(const String& str);
-   GPSdatum ParseNMEA(const String& nmeaStr);
-    
+    GPSdatum ParseNMEA(const String& nmeaStr);
+    GPSdatum ParseNMEA(void) {return ParseNMEA(gpsString);}
+
 protected: //utility functions
     static String GetNMEASubstring(const String& str, int commaIndex);
     static long ConvertToDMM(const String& degStr);
@@ -256,11 +300,44 @@ class GPS_EM506 : public GPS
     {
       serial->begin(4800);
 
-      SendNMEA(F("PSRF103,02,00,00,01"));
-      SendNMEA(F("PSRF103,03,00,00,01"));
-      SendNMEA(F("PSRF103,04,00,01,01"));
+//      SendNMEA(F("PSRF103,02,00,00,01"));
+//      SendNMEA(F("PSRF103,03,00,00,01"));
+//      SendNMEA(F("PSRF103,04,00,01,01"));
+
+        SetActiveNMEAStrings(GGA | RMC);
 
       return 1;
+    }
+    
+
+//    bool SetReportPeriod(uint16_t per)
+//    {
+//        char str[24];
+//        sprintf(str, "PMTK220,%i", per);
+//        SendNMEA(str);
+//
+//        //should really wait for confirmation
+//        return true;
+//    }
+//
+    bool SetActiveNMEAStrings(uint8_t strings)
+    {
+        char str[96];
+
+        sprintf(str, "PSRF103,00,00,%2i,01", strings & GGA ? 1 : 0);
+        SendNMEA(str);
+
+        sprintf(str, "PSRF103,02,00,%2i,01", strings & GSA ? 1 : 0);
+        SendNMEA(str);
+        
+        sprintf(str, "PSRF103,03,00,%2i,01", strings & GSV ? 1 : 0);
+        SendNMEA(str);
+        
+        sprintf(str, "PSRF103,04,00,%2i,01", strings & RMC ? 1 : 0);
+        SendNMEA(str);
+
+        //should really wait for confirmation
+        return true;
     }
 };
 

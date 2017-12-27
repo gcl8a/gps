@@ -122,6 +122,7 @@ String GPS::MakeNMEAwithChecksum(const String& str)
 
 GPSdatum GPS::ParseNMEA(const String& nmeaStr)
 {
+    //SerialUSB.println(nmeaStr);
     GPSdatum gpsDatum;
     
     uint16_t length = nmeaStr.length();
