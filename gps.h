@@ -30,29 +30,79 @@
 //
 //};
 
-class GPSdatum
+struct GPSDump
+{
+    uint32_t timestamp = 0;
+    
+    uint8_t hour, min, sec, msec;
+    int32_t lat, lon;
+    uint16_t elev; //tenths of a meter -- only goes to 6500 meters
+
+    uint8_t fix = 0;
+    uint8_t dummy = 0x55; //to make it an even 20
+};
+
+class GPSDatum
 {
 public:
   uint8_t source = 0; //indicates which strings/readings were used to create it
   
   //unsigned long secondsAfterMidnight;
-  uint8_t day, month, year;
+  uint8_t day = 0, month = 0, year = 0;
   uint8_t hour, minute, second, msec;
   
   long lat = -99;
   long lon = -199;
-  double elev = -99; //not really a double, but sprintf balks otherwise
-  double speed = 0;
+  float elev = -99;
+  float speed = 0;
 
   uint8_t gpsFix = 0;
     
   uint32_t timestamp = 0; //used to hold value from millis(), not true timestamp
 
 public:
-    GPSdatum(uint32_t ts = millis()) : timestamp(ts) {}
+    GPSDatum(uint32_t ts = millis()) : timestamp(ts) {}
     uint8_t operator() (void) {return source;}
     
-  uint8_t ParseNMEA(const String& str);
+    uint8_t ParseNMEA(const String& str);
+    
+    GPSDump MakeDataDump(void)
+    {
+        GPSDump dump;
+
+        dump.timestamp = timestamp;
+        dump.fix = gpsFix;
+
+        dump.hour = hour;
+        dump.min = minute;
+        dump.sec = second;
+        dump.msec = msec;
+        
+        dump.lat = lat;
+        dump.lon = lon;
+        
+        dump.elev = (uint16_t)(elev * 10);
+        
+        return dump;
+    }
+    
+    String ParseDataDump(const GPSDump& dump)
+    {
+        timestamp = dump.timestamp;
+        gpsFix = dump.fix;
+        
+        hour = dump.hour;
+        minute = dump.min;
+        second = dump.sec;
+        msec = dump.msec;
+        
+        lat = dump.lat;
+        lon = dump.lon;
+        
+        elev = dump.elev / 10.0;
+        
+        return MakeDataString();
+    }
   
   static String GetNMEASubstring(const String& str, int commaIndex);
   static long ConvertToDMM(const String& degStr);
@@ -69,7 +119,7 @@ public:
     return checksum;
   }
 
-  int Merge(const GPSdatum& newReading)
+  int Merge(const GPSDatum& newReading)
   {
     int retVal = 0;
     if(newReading.hour == hour && newReading.minute == minute && newReading.second == second && newReading.msec == msec)
@@ -96,20 +146,15 @@ public:
     return retVal;
   }
     
-    int MakeMonthDay(void)
-    {
-        return month * 100 + day;
-    }
-
     String MakeDataString(void)
     {
         if(gpsFix)
         {
             char dataStr[100];
             
-            sprintf(dataStr, "%lu,%X,%i,%02i:%02i:%02i,%li,%li,%2.2f",
-                    timestamp%1000,
-                    source,
+            sprintf(dataStr, "%lu,%i,%02i:%02i:%02i,%li,%li,%2.1f",
+                    timestamp,
+//                    source, %X
                     gpsFix,
 //                    year,
 //                    month,
@@ -173,15 +218,16 @@ protected:
   String gpsString; //working string for storing characters as they roll in across the UART
   HardwareSerial* serial; //UART of choice -- no real need to make it a variable, but so be it
 
-  GPSdatum workingDatum; //working datum; we'll try to add new readings to it and return its state
+  GPSDatum workingDatum; //working datum; we'll try to add new readings to it and return its state
 
 public:
     GPS(HardwareSerial* ser) : serial(ser) {}
 
   virtual int Init(void) = 0;
     
+    String MakeDataString(void) {return workingDatum.MakeDataString();}
 
-  GPSdatum GetReading(void) {return workingDatum;}
+  GPSDatum GetReading(void) {return workingDatum;}
 
     static uint8_t CalcChecksum(const String& str)
     {
@@ -194,7 +240,7 @@ public:
         return checksum;
     }
 
-    uint8_t CheckSerial(GPSdatum* datum)
+    uint8_t CheckSerial(GPSDatum* datum)
     {
         while(serial->available())
         {
@@ -202,7 +248,7 @@ public:
             if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
             if(c == '\n') //we have a complete string
             {
-                GPSdatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
+                GPSDatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
                 uint8_t retVal = newReading.source;
                 
                 if(newReading.source) //if we have a valid string
@@ -230,7 +276,7 @@ public:
             {
                 //                GPSdatum newReading;
                 //                retVal = newReading.ParseNMEA(gpsString); //parse it; retVal holds its type
-                GPSdatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
+                GPSDatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
                 retVal = newReading.source;
                 
                 if(newReading.source) //if we have a valid string
@@ -279,10 +325,13 @@ int SendNMEA(const String& str)
     }
     return 0;
 }
+    
+    GPSDump MakeDataDump(void) { return workingDatum.MakeDataDump();}
+
 
   static String MakeNMEAwithChecksum(const String& str);
-    GPSdatum ParseNMEA(const String& nmeaStr);
-    GPSdatum ParseNMEA(void) {return ParseNMEA(gpsString);}
+    GPSDatum ParseNMEA(const String& nmeaStr);
+    GPSDatum ParseNMEA(void) {return ParseNMEA(gpsString);}
 
 protected: //utility functions
     static String GetNMEASubstring(const String& str, int commaIndex);

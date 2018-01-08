@@ -1,6 +1,6 @@
 #include <gps.h>
 
-uint8_t GPSdatum::ParseNMEA(const String& nmeaStr)
+uint8_t GPSDatum::ParseNMEA(const String& nmeaStr)
 {
   uint16_t length = nmeaStr.length();
   if(length < 3) return 0;
@@ -60,7 +60,7 @@ uint8_t GPSdatum::ParseNMEA(const String& nmeaStr)
   return 0;
 }
 
-String GPSdatum::GetNMEASubstring(const String& str, int commaIndex)
+String GPSDatum::GetNMEASubstring(const String& str, int commaIndex)
 /*
  * grabs the substring of an NMEA string after comma number commaIndex
  */
@@ -78,7 +78,7 @@ String GPSdatum::GetNMEASubstring(const String& str, int commaIndex)
   return str.substring(iComma + 1, iCommaNext);
 }
 
-long GPSdatum::ConvertToDMM(const String& degStr)
+long GPSDatum::ConvertToDMM(const String& degStr)
 {
   int iDecimal = degStr.indexOf('.');
   if(iDecimal == -1) return 0;
@@ -90,7 +90,7 @@ long GPSdatum::ConvertToDMM(const String& degStr)
   return dmm;
 }
 
-int GPSdatum::NMEAtoTime(const String& timeStr)
+int GPSDatum::NMEAtoTime(const String& timeStr)
 {
   if(timeStr.length() != 10) return 0;
 
@@ -102,7 +102,7 @@ int GPSdatum::NMEAtoTime(const String& timeStr)
   return 1;
 }
 
-int GPSdatum::NMEAtoDate(const String& dateStr)
+int GPSDatum::NMEAtoDate(const String& dateStr)
 {
   if(dateStr.length() != 6) return 0;
 
@@ -115,15 +115,15 @@ int GPSdatum::NMEAtoDate(const String& dateStr)
 
 String GPS::MakeNMEAwithChecksum(const String& str)
 {
-  String checkSum = String(GPSdatum::CalcChecksum(str), HEX);
+  String checkSum = String(GPSDatum::CalcChecksum(str), HEX);
   checkSum.toUpperCase();
   return '$' + str + '*' + checkSum + "\r\n";
 }
 
-GPSdatum GPS::ParseNMEA(const String& nmeaStr)
+GPSDatum GPS::ParseNMEA(const String& nmeaStr)
 {
     //SerialUSB.println(nmeaStr);
-    GPSdatum gpsDatum;
+    GPSDatum gpsDatum;
     
     uint16_t length = nmeaStr.length();
     if(length < 3) return 0;
