@@ -30,31 +30,30 @@
 //
 //};
 
-struct GPSDump
-{
-    uint32_t timestamp = 0;
-    
-    uint8_t hour, min, sec, msec;
-    int32_t lat, lon;
-    uint16_t elev; //tenths of a meter -- only goes to 6500 meters
+//struct GPSDump
+//{
+//    uint32_t timestamp = 0;
+//
+//    uint8_t hour, min, sec, msec;
+//    int32_t lat, lon;
+//    uint16_t elev; //tenths of a meter -- only goes to ~6500 meters
+//
+//    uint8_t fix = 0;
+//    uint8_t dummy = 0x55; //to make it an even 20
+//};
 
-    uint8_t fix = 0;
-    uint8_t dummy = 0x55; //to make it an even 20
-};
-
-class GPSDatum
+class GPSDatum //really GGA now...
 {
 public:
   uint8_t source = 0; //indicates which strings/readings were used to create it
   
-  //unsigned long secondsAfterMidnight;
   uint8_t day = 0, month = 0, year = 0;
   uint8_t hour, minute, second, msec;
   
-  long lat = -99;
-  long lon = -199;
-  float elev = -99;
-  float speed = 0;
+  int32_t lat = -99;
+  int32_t lon = -199;
+  int16_t elevDM = -99; //elevation is stored as dm to save space
+  //float speed = 0;
 
   uint8_t gpsFix = 0;
     
@@ -66,43 +65,43 @@ public:
     
     uint8_t ParseNMEA(const String& str);
     
-    GPSDump MakeDataDump(void)
-    {
-        GPSDump dump;
-
-        dump.timestamp = timestamp;
-        dump.fix = gpsFix;
-
-        dump.hour = hour;
-        dump.min = minute;
-        dump.sec = second;
-        dump.msec = msec;
-        
-        dump.lat = lat;
-        dump.lon = lon;
-        
-        dump.elev = (uint16_t)(elev * 10);
-        
-        return dump;
-    }
+//    String Serialize(void)
+//    {
+//        char serialDump[...];
+//
+//        dump.timestamp = timestamp;
+//        dump.fix = gpsFix;
+//
+//        dump.hour = hour;
+//        dump.min = minute;
+//        dump.sec = second;
+//        dump.msec = msec;
+//
+//        dump.lat = lat;
+//        dump.lon = lon;
+//
+//        dump.elev = (uint16_t)(elev * 10);
+//
+//        return dump;
+//    }
     
-    String ParseDataDump(const GPSDump& dump)
-    {
-        timestamp = dump.timestamp;
-        gpsFix = dump.fix;
-        
-        hour = dump.hour;
-        minute = dump.min;
-        second = dump.sec;
-        msec = dump.msec;
-        
-        lat = dump.lat;
-        lon = dump.lon;
-        
-        elev = dump.elev / 10.0;
-        
-        return MakeDataString();
-    }
+//    String ParseDataDump(const GPSDump& dump)
+//    {
+//        timestamp = dump.timestamp;
+//        gpsFix = dump.fix;
+//
+//        hour = dump.hour;
+//        minute = dump.min;
+//        second = dump.sec;
+//        msec = dump.msec;
+//
+//        lat = dump.lat;
+//        lon = dump.lon;
+//
+//        elev = dump.elev / 10.0;
+//
+//        return MakeDataString();
+//    }
   
   static String GetNMEASubstring(const String& str, int commaIndex);
   static long ConvertToDMM(const String& degStr);
@@ -130,12 +129,12 @@ public:
         month = newReading.month;
         day = newReading.day;
 
-        speed = newReading.speed;
+        //speed = newReading.speed;
       }
 
       else if(newReading.source & GGA)
       {
-        elev = newReading.elev;
+        elevDM = newReading.elevDM;
         gpsFix = newReading.gpsFix;
       }
 
@@ -164,7 +163,7 @@ public:
                     second,
                     lat,
                     lon,
-                    elev);
+                    (elevDM / 10.0));
             return String(dataStr);
         }    
         else
@@ -206,7 +205,7 @@ public:
                 second,
 //                lat,
 //                lon,
-                elev);
+                (elevDM / 10.0));
         
         return String(dataStr);
     }
@@ -245,6 +244,7 @@ public:
         while(serial->available())
         {
             char c = serial->read();
+            
             if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
             if(c == '\n') //we have a complete string
             {
@@ -271,6 +271,7 @@ public:
         while(serial->available())
         {
             char c = serial->read();
+
             if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
             if(c == '\n') //we have a complete string
             {
@@ -301,20 +302,20 @@ public:
         return retVal;
     }
     
-    uint8_t CheckSerialNoParse(void)
-    {
-        while(serial->available())
-        {
-            char c = serial->read();
-            if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
-            if(c == '\n') //we have a complete string
-            {
-                return true;
-            }
-        }
-        
-        return false;
-    }
+//    uint8_t CheckSerialNoParse(void)
+//    {
+//        while(serial->available())
+//        {
+//            char c = serial->read();
+//            if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
+//            if(c == '\n') //we have a complete string
+//            {
+//                return true;
+//            }
+//        }
+//
+//        return false;
+//    }
     
 int SendNMEA(const String& str)
 {
@@ -326,7 +327,7 @@ int SendNMEA(const String& str)
     return 0;
 }
     
-    GPSDump MakeDataDump(void) { return workingDatum.MakeDataDump();}
+    //GPSDump MakeDataDump(void) { return workingDatum.MakeDataDump();}
 
 
   static String MakeNMEAwithChecksum(const String& str);
@@ -392,16 +393,16 @@ class GPS_EM506 : public GPS
 
 class GPS_MTK3339 : public GPS
 {
-  public:
+public:
     GPS_MTK3339(HardwareSerial* ser) : GPS(ser) {}
     int Init(void)
     {
         SetReportPeriod(1000); //rate, in ms; default to 1 Hz
         SetActiveNMEAStrings(GGA | RMC);
         //SendNMEA("PMTK401");
-      //SendNMEA("PMTK413");
-      
-      return 1;
+        //SendNMEA("PMTK413");
+        
+        return 1;
     }
     
     bool SetReportPeriod(uint16_t per)
@@ -423,6 +424,42 @@ class GPS_MTK3339 : public GPS
         //should really wait for confirmation
         return true;
     }
+};
+
+class GPS_GP_735 : public GPS
+{
+public:
+    GPS_GP_735(HardwareSerial* ser) : GPS(ser) {}
+    int Init(void)
+    {
+        serial->begin(9600);
+        //SetReportPeriod(1000); //rate, in ms; default to 1 Hz
+        //SetActiveNMEAStrings(GGA | RMC);
+        //SendNMEA("PMTK401");
+        //SendNMEA("PMTK413");
+        
+        return 1;
+    }
+    
+//    bool SetReportPeriod(uint16_t per)
+//    {
+//        char str[24];
+//        sprintf(str, "PMTK220,%i", per);
+//        SendNMEA(str);
+//
+//        //should really wait for confirmation
+//        return true;
+//    }
+//
+//    bool SetActiveNMEAStrings(uint8_t strings)
+//    {
+//        char str[96];
+//        sprintf(str, "PMTK314,0,%i,0,%i,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", strings & RMC ? 1 : 0, strings & GGA ? 1 : 0);
+//        SendNMEA(str);
+//
+//        //should really wait for confirmation
+//        return true;
+//    }
 };
 
 #endif
