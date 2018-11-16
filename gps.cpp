@@ -157,27 +157,3 @@ long GPS::ConvertToDMM(const String& degStr)
     
     return dmm;
 }
-
-//int GPS::NMEAtoTime(const String& timeStr)
-//{
-//    if(timeStr.length() != 10) return 0;
-//
-//    hour = timeStr.substring(0, 2).toInt();
-//    minute = timeStr.substring(2, 4).toInt();
-//    second = timeStr.substring(4, 6).toInt();
-//    msec = timeStr.substring(8).toInt();
-//
-//    return 1;
-//}
-//
-//int GPS::NMEAtoDate(const String& dateStr)
-//{
-//    if(dateStr.length() != 6) return 0;
-//
-//    day = dateStr.substring(0, 2).toInt();
-//    month = dateStr.substring(2, 4).toInt();
-//    year = dateStr.substring(4, 6).toInt();
-//
-//    return 1;
-//}
-

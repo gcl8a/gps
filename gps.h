@@ -85,17 +85,17 @@ class GPSDatum //really GGA now...
 {
 public:
   uint8_t source = 0; //indicates which strings/readings were used to create it
-  
+
   uint8_t day = 0, month = 0, year = 0;
-  uint8_t hour, minute, second, msec;
+    uint8_t hour, minute, second, msec;
   
   int32_t lat = -99;
   int32_t lon = -199;
   int16_t elevDM = -99; //elevation is stored as dm to save space
   //float speed = 0;
 
-  uint8_t gpsFix = 0;
-    
+  uint16_t gpsFix = 0; //2-bytes to make size % 4
+
   uint32_t timestamp = 0; //used to hold value from millis(), not true timestamp
 
 public:
@@ -607,6 +607,7 @@ public:
             delay(100);
         }
         
+        //delay(500);
         //SetReportPeriod(1000); //rate, in ms; default to 1 Hz
         //SetActiveNMEAStrings(GGA | RMC);
         //SendNMEA("PMTK401");
@@ -658,7 +659,7 @@ public:
         return gpsProtocol;
     }
     
-    uint8_t SetSBAS(void) //only one option with this device
+    int8_t SetSBAS(void) //only one option with this device
     {
         if(gpsProtocol != GPS_BINARY) return -1;
         
@@ -692,6 +693,32 @@ public:
     {
         uint8_t msg[] = {0xda, 0};
         SendBinary(msg, 2);
+    }
+
+    int8_t RequestTricklePower(void)
+    {
+        if(gpsProtocol != GPS_BINARY) return -1;
+        
+        uint8_t pwrMsg[16];
+        
+        pwrMsg[0] = 0xda; //power
+        pwrMsg[1] = 0x03; //trickle power
+        
+        uint16_t dutyCycle = 100;
+        memcpy(&pwrMsg[2], &dutyCycle, 2);
+
+        uint32_t periodOn = 400;
+        memcpy(&pwrMsg[4], &periodOn, 4);
+
+        uint32_t maxOff = 15000; //default is 30000
+        memcpy(&pwrMsg[8], &maxOff, 4);
+        
+        uint32_t maxSearchMS = 120000; //default
+        memcpy(&pwrMsg[12], &maxSearchMS, 4);
+
+        SendBinary(pwrMsg, 16);
+        
+        return 1;
     }
 };
 
