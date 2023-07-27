@@ -14,33 +14,6 @@
 enum GPS_PROTOCOL {GPS_NMEA = 1, GPS_BINARY};
 enum MESSAGE_STATE {WAITING0, WAITING1, SIZE0, SIZE1, PAYLOAD, CHECK0, CHECK1, CLOSE0, CLOSE1, COMPLETE, EPILOG_ERROR = 253, CHECKSUM_ERROR = 254, ERROR = 255};
 
-
-//#ifdef SERIAL_PORT_MONITOR
-//#define SerialMonitor SERIAL_PORT_MONITOR
-//#else
-//#define SerialMonitor SerialUSB
-//#endif
-
-//struct GPSDatum
-//{
-//    uint8_t source = 0; //indicates which strings/readings were used to create it
-//
-//    GPSDatum(uint8_t s) : source(s) {}
-//    uint8_t operator [] (int) {return source;}
-//};
-//
-//struct GGADatum : public GPSDatum
-//{
-//    GGADatum(void) : GPSDatum(GGA) {}
-//
-//};
-//
-//struct RMCDatum : public GPSDatum
-//{
-//    RMCDatum(void) : GPSDatum(RMC) {}
-//
-//};
-
 #define vector_u8 TVector<uint8_t>
 
 class GPSMessage //binary messages; really a struct?
