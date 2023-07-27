@@ -2,7 +2,7 @@
 #define __GPS_H
 
 #include <Arduino.h> // for byte data type
-#include <vector.h>
+#include <vector_uC.h>
 
 #define GGA 0x01
 #define RMC 0x02
@@ -352,7 +352,7 @@ public:
         while(serial->available())
         {
             char c = serial->read();
-            //SerialUSB.print(c);
+            SerialUSB.print(c);
             
             if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
             if(c == '\n') //we have a complete string
