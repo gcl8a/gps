@@ -26,8 +26,8 @@ void setup()
   delay(500);
 
   gps.Init();
+  
   //assign pins 3 & 4 SERCOM functionality
-  //gpsSerial.begin(4800);
   pinPeripheral(3, PIO_SERCOM_ALT);
   pinPeripheral(4, PIO_SERCOM_ALT);
 
