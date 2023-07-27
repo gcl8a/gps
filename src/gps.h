@@ -458,8 +458,7 @@ class GPS_EM506 : public GPS
 //      SendNMEA(F("PSRF103,03,00,00,01"));
 //      SendNMEA(F("PSRF103,04,00,01,01"));
 
-        SetActiveNMEAStrings(GGA | RMC);
-
+ 
       return 1;
     }
     

@@ -23,15 +23,16 @@ void setup()
   SerialUSB.begin(115200);
   SerialUSB.println("Hej.");
 
-  //assign pins 3 & 4 SERCOM functionality
-  gpsSerial.begin(9600);
-  pinPeripheral(3, PIO_SERCOM_ALT);
-  pinPeripheral(4, PIO_SERCOM_ALT);
-
   delay(500);
 
   gps.Init();
-  
+  //assign pins 3 & 4 SERCOM functionality
+  //gpsSerial.begin(4800);
+  pinPeripheral(3, PIO_SERCOM_ALT);
+  pinPeripheral(4, PIO_SERCOM_ALT);
+
+  gps.SetActiveNMEAStrings(GGA | RMC);
+
   SerialUSB.println(F("Setup complete."));
 
   SerialUSB.println(F("Checking for signal."));
@@ -57,5 +58,4 @@ void loop()
 
     SerialUSB.println(reportStr);  
   }
-
 }
