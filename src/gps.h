@@ -8,6 +8,7 @@
 #define RMC 0x02
 #define GSA 0x04
 #define GSV 0x08
+#define GPS_STR 0x80    //used to indicate that a string was received, even if there is no lock
 
 #define KNOTS_TO_KMH 1.852001
 
@@ -352,7 +353,7 @@ public:
         while(serial->available())
         {
             char c = serial->read();
-            SerialUSB.print(c);
+            //SerialUSB.print(c);
             
             if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
             if(c == '\n') //we have a complete string
@@ -360,7 +361,7 @@ public:
                 //                GPSdatum newReading;
                 //                retVal = newReading.ParseNMEA(gpsString); //parse it; retVal holds its type
                 GPSDatum newReading = ParseNMEA(gpsString); //parse it; retVal holds its type
-                retVal = newReading.source;
+                retVal = newReading.source | GPS_STR;
                 
                 if(newReading.source) //if we have a valid string
                 {
