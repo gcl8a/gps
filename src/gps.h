@@ -55,7 +55,7 @@ public:
     }
 };
 
-class GPSDatum //really GGA now...
+class GPSDatum 
 {
 public:
   uint8_t source = 0; //indicates which strings/readings were used to create it
@@ -347,6 +347,29 @@ public:
         return msgState;
     }
     
+    uint8_t CheckSerialRaw(String& retStr)
+    {
+        int retVal = 0;
+        while(serial->available())
+        {
+            char c = serial->read();
+            //SerialUSB.print(c);
+            
+            if(c != '\n' && c != '\r') gpsString += c;  //ignore carriage return and newline
+            if(c == '\n') //we have a complete string
+            {
+                retStr = gpsString;
+                retVal = gpsString.length();
+
+                gpsString = "";
+            }
+        }
+
+        return retVal;
+    }
+
+
+
     uint8_t CheckSerial(void)
     {
         int retVal = 0;
