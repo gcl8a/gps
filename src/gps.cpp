@@ -18,7 +18,7 @@ String GPSDatum::GetNMEASubstring(const String& str, int commaIndex)
   return str.substring(iComma + 1, iCommaNext);
 }
 
-long GPSDatum::ConvertToDMM(const String& degStr)
+long GPSDatum::ConvertToDMM(const String& degStr) // "decimilliminutes": divide be 10000 to get minutes
 {
   int iDecimal = degStr.indexOf('.');
   if(iDecimal == -1) return 0;
